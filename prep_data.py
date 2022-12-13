@@ -5,6 +5,7 @@ import os
 from pydub import AudioSegment
 import ffmpeg
 import json
+import numpy as np
 
 # truncate all songs to 15 seconds
 def prep_audio_files():
@@ -28,8 +29,10 @@ def main():
     SAMPLES_PER_SLICE = int(TOTAL_SAMPLES / NUM_SLICES)
     prep_audio_files()
     mfcc_dict = {}
+    mfcc_dict['sample_num'] = []
     mfcc_dict['labels'] = []
     mfcc_dict['mfcc'] = []
+    i = 0
     for dir in os.listdir('./audio'):
         if dir.startswith('.'):
             continue
@@ -42,13 +45,16 @@ def main():
                 finish = start + SAMPLES_PER_SLICE
                 mfcc = lr.feature.mfcc(y=y[start:finish], sr=sr , n_mfcc=13)
                 mfcc = mfcc.T
+                mfcc_dict['sample_num'].append(i)
                 mfcc_dict['mfcc'].append(mfcc.tolist())
-                mfcc_dict['labels'].append(dir)
+                if (dir == 'hip-hop'):
+                    mfcc_dict['labels'].append(0)
+                elif (dir == 'rock'):
+                    mfcc_dict['labels'].append(1)
+                i += 1
 
-    pd.DataFrame(mfcc_dict).to_csv('data.csv')
-    #with open('data.json', 'w') as fp:
-        #json.dump(mfcc_dict, fp, indent=4)  
-        #fp.close()
+    mfcc_df = pd.DataFrame(mfcc_dict)
+    mfcc_df.to_csv('data.csv', index=False)
 
 if __name__ == "__main__":
     main()

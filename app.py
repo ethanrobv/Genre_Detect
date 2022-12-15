@@ -3,6 +3,8 @@ from tkinter import filedialog, Text
 from tkinter.messagebox import showinfo
 import os
 
+import tensorflow as tf
+
 import librosa as lr
 import numpy as np
 from pydub import AudioSegment
@@ -20,12 +22,17 @@ data = []
 #     song.export(s_name)
 #     return song
 
+SAMPLE_RATE = 22050
+NUM_SLICES = 10
+TOTAL_SAMPLES = 15 * SAMPLE_RATE
+SAMPLES_PER_SLICE = int(TOTAL_SAMPLES / NUM_SLICES)
+
 def main():
     application2()
     return 0 
 
 def use_file():
-    filename = filedialog.askopenfilename(initialdir="/", title="Select File", filetypes=(("WAV Files", "*.wav"), ("all files", "*.*")))
+    filename = filedialog.askopenfilename(initialdir="/", title="Select File", filetypes=(("MP3 Files", "*.mp3"), ("all files", "*.*")))
     data.append(filename)
     print(filename)
     more = "audio file:  "
@@ -33,6 +40,18 @@ def use_file():
         for j in lst:
             txt = tk.Label(j,text=more + i, bg="gray")
             txt.pack()
+    
+def make_prediction():
+    model = tf.keras.models.load_model('./model.h5')
+    y, sr = lr.load(data[0])
+    start = SAMPLES_PER_SLICE * 0
+    finish = start + SAMPLES_PER_SLICE
+    mfcc = lr.feature.mfcc(y=y[start:finish], sr=sr , n_mfcc=13)
+    mfcc = mfcc.T
+    mfcc_np = np.array(mfcc)
+
+    prediction = model.predict(mfcc_np.reshape(1, 10, 13, 1))
+    tk.Message(lst[0], text="Prediction: " + str(prediction)).pack()
 
 def application2():
     root = tk.Tk()
@@ -44,6 +63,10 @@ def application2():
     lst.append(frame)
     open_f = tk.Button(root, text="Open File", padx=5, pady=5, fg="white", bg="#263D42", command=use_file)
     open_f.pack()
+
+    predict_button = tk.Button(root, text="Predict", padx=5, pady=5, fg="white", bg="#263D42", command=make_prediction)
+    predict_button.pack()
+
 
     root.mainloop()
 

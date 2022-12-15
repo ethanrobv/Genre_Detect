@@ -132,4 +132,5 @@ def create_model(train_size):
 
 model = create_model(len(xTrain))
 model.summary()
-run_model(model, xTrain, yTrain, xTest, yTest, 10)
+run_model(model, xTrain, yTrain, xTest, yTest, 1)
+model.save('./model.h5')

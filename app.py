@@ -8,11 +8,14 @@ import tensorflow as tf
 import librosa as lr
 import numpy as np
 from pydub import AudioSegment
-#import ffmpeg
+import ffmpeg
 import json
+import model as md
+from model import CustomDenseVariational
+import pandas as pd
 
 lst = []
-data = []
+data_list = []
 
 # def prep_audio_files(s_name):
 #     song = AudioSegment.from_file(s_name)
@@ -26,6 +29,7 @@ SAMPLE_RATE = 22050
 NUM_SLICES = 10
 TOTAL_SAMPLES = 15 * SAMPLE_RATE
 SAMPLES_PER_SLICE = int(TOTAL_SAMPLES / NUM_SLICES)
+file = "./SnapSave.io - Southern Cross (128 kbps).mp3"
 
 def main():
     application2()
@@ -33,25 +37,88 @@ def main():
 
 def use_file():
     filename = filedialog.askopenfilename(initialdir="/", title="Select File", filetypes=(("MP3 Files", "*.mp3"), ("all files", "*.*")))
-    data.append(filename)
+    data_list.append(filename)
+    file = filename
     print(filename)
     more = "audio file:  "
-    for i in data:
+    for i in data_list:
         for j in lst:
             txt = tk.Label(j,text=more + i, bg="gray")
             txt.pack()
     
 def make_prediction():
-    model = tf.keras.models.load_model('./model.h5')
-    y, sr = lr.load(data[0])
-    start = SAMPLES_PER_SLICE * 0
-    finish = start + SAMPLES_PER_SLICE
-    mfcc = lr.feature.mfcc(y=y[start:finish], sr=sr , n_mfcc=13)
-    mfcc = mfcc.T
-    mfcc_np = np.array(mfcc)
+    with tf.keras.utils.CustomObjectScope({'CustomDenseVariational': CustomDenseVariational}):
+        model = md.create_model()
+        model.load_weights('model_weights.h5')
+        y, sr = lr.load(data_list[0])
+        mfcc_dict = {}
+        mfcc_dict['mfcc'] = []
+        mfcc = None
+        for s in range(NUM_SLICES):
+                start = SAMPLES_PER_SLICE * s
+                finish = start + SAMPLES_PER_SLICE
+                mfcc = lr.feature.mfcc(y=y[start:finish], sr=sr , n_mfcc=13)
+                mfcc = mfcc.T
+                mfcc_dict['mfcc'].append(mfcc.tolist())
+        mfcc_df = pd.DataFrame(mfcc_dict)
+        mfcc_df.to_csv('datum.csv', index=False)
+        # remove all quotation marks from data.csv
+        with open('datum.csv', 'r') as f:
+            lines = f.readlines()
+        with open('datum.csv', 'w') as f:
+            for line in lines:
+                f.write(line.replace('"', ''))
+        
+        # remove all brackets and double brackets from data.csv
+        with open('datum.csv', 'r') as f:
+            lines = f.readlines()
+        with open('datum.csv', 'w') as f:
+            for line in lines:
+                f.write(line.replace('[', ''))
+        
+        with open('datum.csv', 'r') as f:
+            lines = f.readlines()
+        with open('datum.csv', 'w') as f:
+            for line in lines:
+                f.write(line.replace(']', ''))
+        
+        with open('datum.csv', 'r') as f:
+            lines = f.readlines()
+        with open('datum.csv', 'w') as f:
+            for line in lines:
+                f.write(line.replace('[[', ''))
+        
+        with open('datum.csv', 'r') as f:
+            lines = f.readlines()
+        with open('datum.csv', 'w') as f:
+            for line in lines:
+                f.write(line.replace(']]', ''))
+        
+        data=np.loadtxt(fname='./data.csv',delimiter=',',dtype=float,skiprows=1)
+        # delete first two columns
+        data = np.delete(data, [0, 1], axis=1)
+    
 
-    prediction = model.predict(mfcc_np.reshape(1, 10, 13, 1))
-    tk.Message(lst[0], text="Prediction: " + str(prediction)).pack()
+        data = np.asarray(data)
+
+
+        prediction = model.predict(data)
+        predicted_classes = np.argmax(prediction, axis=-1)
+        output = ""
+        tally_zero = 0
+        tally_one = 0
+        for pred in predicted_classes:
+            if pred == 0:
+                tally_zero += 1
+            else:
+                tally_one += 1
+        if tally_zero > tally_one:
+            output = "Hip-Hop"
+        else:
+            output = "Rock"
+
+    
+        tk.Message(lst[0], text="Prediction: " + str(output)).pack()
 
 def application2():
     root = tk.Tk()

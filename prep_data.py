@@ -53,7 +53,7 @@ def main():
                     mfcc_dict['labels'].append(1)
                 i += 1
 
-    mfcc_df = pd.DataFrame(mfcc_dict)
+    mfcc_df = pd.DataFrame([mfcc_dict])
     mfcc_df.to_csv('data.csv', index=False)
 
 if __name__ == "__main__":
